@@ -1,6 +1,9 @@
 # Music-Maze
 Music generator through implicit cooperative agents
 
+## TODO
+- remove recursion from functions in maze.py
+
 ## The project
 Music can be considered (in according to [1]) nothing more than "organized sounds", where repetition has an important role in order to create a structure or a recognizable pattern.
 ...
