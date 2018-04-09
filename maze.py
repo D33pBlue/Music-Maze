@@ -1,51 +1,56 @@
+# A maze is a square of r*c cells, each of them consists in a dictionary
+# with the following keys:
+# -r: the row in the square
+# -c: the column in the square
+# -n: True if and only if there is a wall at north of the cell
+# -s: True if and only if there is a wall at south of the cell
+# -e: True if and only if there is a wall at east of the cell
+# -w: True if and only if there is a wall at west of the cell
+# -state: a string with the state of the cell
+# -adj: the adjacency list of the cell
+
 import random
+import time
 
-def crea_cella(r,c,n=True,s=True,e=True,o=True,stato=""):
-	cella=dict()
-	cella['r']=r
-	cella['c']=c
-	cella['n']=n
-	cella['s']=s
-	cella['e']=e
-	cella['o']=o
-	cella['stato']=stato
-	cella['collegate']=[]
-	return cella
+last_cell_id = 0
 
+def make_cell(r,c,n=True,s=True,e=True,w=True,state=""):
+	global last_cell_id
+	cell=dict()
+	cell['id']=last_cell_id
+	last_cell_id += 1
+	cell['r']=r
+	cell['c']=c
+	cell['n']=n
+	cell['s']=s
+	cell['e']=e
+	cell['w']=w
+	cell['state']=state
+	cell['adj']=[]
+	return cell
 
+def add_adj(cell,adj):
+	present = False
+	for x in cell['adj']:
+		if x['id'] == adj['id']:
+			present = True
+			break
+	if not present:
+		cell['adj'].append(adj)
 
-def add_collegata(cella,collegata):
-	if not collegata in cella['collegate']:
-		cella['collegate'].append(collegata)
+def get_shape(L):
+	return (len(L),len(L[0]))
 
-
-def contiene_caratteri_non_conformi(riga,indice_riga):
-	indice_colonna=0
-	for e in riga:
-		if indice_riga%2==1:
-			if e != ' ' and e != '*':
-				return True
-		else:
-			if indice_colonna%2==1 and e != ' ' and e != '*':
-				return True
-		indice_colonna+=1
-	return False
-
-
-
-def cella_presente(L,c):
-	#ottengo le righe e le colonne in L
-	Lr,Lc = righe_colonne(L)
+# L is a array of cells (square)
+def check_cell(L,c):
+	Lr,Lc = get_shape(L)
 	i,j=c
-	#se le coordinate non sono compatibili con la dimensione di L ritorno False
 	if i<0 or i>=Lr or j<0 or j>=Lc:
 		return False
-	#se la Cella esiste verifico non sia None
 	return L[i][j] != None
 
 
-
-def adiacenti(c1,c2):
+def adjacent(c1,c2):
 	if abs(c1[0]-c2[0]) ==1 and c1[1] == c2[1]:
 		return True
 	if abs(c1[1]-c2[1]) ==1 and c1[0] == c2[0]:
@@ -53,204 +58,152 @@ def adiacenti(c1,c2):
 	return False
 
 
-
-def visita_grafo(cella,prec,percorso):
-        percorso.append(cella)
-        cella['visitato']=True
-        for c in cella['collegate']:
-        	#non considera la cella prec (visitata al passo precedente)
-        	#e verifica se le altre sono gia' state inserite in percorso
-        	#o se e' gia' stato trovato un ciclo
-            if (c != prec and (c in percorso or visita_grafo(c,cella,percorso))):
-                return True
-        percorso.remove(cella)
-        return False
-
-
-
-def trova_ciclo(L,percorso):
+def has_cycle(L,end):
 	for r in L:
 		for v in r:
-			v['visitato']=False
+			v['visited']=False
 	for r in L:
 		for v in r:
-			if not v['visitato']:
-				if visita_grafo(v,None,percorso):
-					return True
-	return False
-
-def contiene_ciclo(L):
-	for r in L:
-		for v in r:
-			v['visitato']=False
-	for r in L:
-		for v in r:
-			if not v['visitato']:
+			if not v['visited']:
 				stack=[]
-				stato=(None,v)
-				stack.append(stato)
+				state=(None,v)
+				stack.append(state)
 				while len(stack)>0:
-					prec,c = stack[len(stack)-1]
-					del stack[len(stack)-1]
-					if c['visitato']:
+					prec,c = stack.pop()
+					if c['visited']:
+						end[0] = c
 						return True
-					c['visitato']=True
-					for k in c['collegate']:
+					c['visited']=True
+					for k in c['adj']:
 						if k != prec:
-							stato=(c,k)
-							stack.append(stato)
+							state=(c,k)
+							stack.append(state)
 	return False
 
+def find_cycle(start,L):
+	if start == None:
+		return []
+	fifo = []
+	for c in start['adj']:
+		fifo.insert(0,(c,[start]))
+	while len(fifo)>0:
+		c,path = fifo.pop()
+		path.append(c)
+		if c == start:
+			return path
+		for cell in c['adj']:
+			if not cell in path or (cell==start and cell!=path[len(path)-1]):
+				fifo.insert(0,(cell,path[:]))
+	return []
 
-def esiste_cammino(c1,c2,percorso):
-	percorso.append(c1)
-	#se c2 viene raggiunta esiste cammino
-	if c1 == c2:
-		return True
-	#se tutti i possibili spostamenti di un ramo sono gia' stati analizzati
-	#e non si e' in c2, non si e' trovato il cammino
-	visitato_interamente=True
-	for cella in c1['collegate']:
-		if not cella in percorso:
-			visitato_interamente=False
-	if visitato_interamente:
-		percorso.remove(c1)
-		return False
-	#tutte le possibili mosse vengono analizzate fino a che non viene trovato
-	#un cammino o non si e' visitato tutto il grafo
-	scelte=[]
-	for s in c1['collegate']:
-		if not s in percorso:
-			scelte.append(s)
-	for scelta in scelte:
-		if esiste_cammino(scelta,c2,percorso):
-			return True
-	#se si e' visitato tutto il grafo visitabile a partire da c1
-	#e non si e' trovato un cammino verso c2, questo non esiste
-	percorso.remove(c1)
-	return False
+def find_path(c1,c2):
+	stack = []
+	stack.append((c1,[]))
+	while len(stack)>0:
+		c,path = stack.pop()
+		path.append(c)
+		if c == c2:
+			return path
+		for cell in c['adj']:
+			if not cell in path:
+				stack.append((cell,path[:]))
+	return []
 
 
 
-def celle_visitabili(c):
+def findable_cells(c):
 	stack=[]
-	visitate=[]
+	visited=set()
 	stack.append(c)
 	while len(stack)> 0:
-		c_corr=stack[len(stack)-1]
-		del stack[len(stack)-1]
-		##print c_corr
+		c_corr=stack.pop()
 		coord=(c_corr['r'],c_corr['c'])
-		if not coord in visitate:
-			visitate.append(coord)
-		for k in c_corr['collegate']:
+		visited.add(coord)
+		for k in c_corr['adj']:
 			k_c = (k['r'],k['c'])
-			if not k_c in visitate:
+			if not k_c in visited:
 				stack.append(k)
-	return len(visitate)
+	return len(visited)
 
 
-def connesso(L):
-	r,c=righe_colonne(L)
-	return r*c==celle_visitabili(L[0][0])
+def connected(L):
+	r,c=get_shape(L)
+	return r*c==findable_cells(L[0][0])
 
 
-
-def uscita_pesente(L,cella,cammini):
-	i=cella['r']
-	j=cella['c']
+def delete_random_wall(L,cell):
+	i,j=cell['r'],cell['c']
 	k=(i,j)
 	k_n=(i-1,j)
 	k_s=(i+1,j)
 	k_e=(i,j+1)
-	k_o=(i,j-1)
-	set_stato(L,k,"Percorso")
-	cammini.append(k)
-	if k in uscite(L):
-		return True
-	if( (cella['n'] or get_stato(L,k_n)=="Percorso")
-		and (cella['s'] or get_stato(L,k_s)=="Percorso")
-		and (cella['o'] or get_stato(L,k_o)=="Percorso")
-		and (cella['e'] or get_stato(L,k_e)=="Percorso")):
-		set_stato(L,k,"")
-		cammini.remove(k)
-		return False
-	percorsi=[]
-	if not cella['n'] and get_stato(L,k_n)!="Percorso":
-		percorsi.append(L[i-1][j])
-	if not cella['s'] and get_stato(L,k_s)!="Percorso":
-		percorsi.append(L[i+1][j])
-	if not cella['e'] and get_stato(L,k_e)!="Percorso":
-		percorsi.append(L[i][j+1])
-	if not cella['o'] and get_stato(L,k_o)!="Percorso":
-		percorsi.append(L[i][j-1])
-	for p in percorsi:
-		if uscita_pesente(L,p,cammini):
-			return True
-	set_stato(L,k,"")
-	cammini.remove(k)
-	return False
-
-
-
-def abbatti_muro_random(L,cella):
-	i,j=cella['r'],cella['c']
-	#vengono identificate le Celle adiacenti
-	k=(i,j)
-	k_n=(i-1,j)
-	k_s=(i+1,j)
-	k_e=(i,j+1)
-	k_o=(i,j-1)
-	possibili_confinanti=[]
-	if cella_presente(L,k_n):
-		possibili_confinanti.append(k_n)
-	if cella_presente(L,k_s):
-		possibili_confinanti.append(k_s)
-	if cella_presente(L,k_e):
-		possibili_confinanti.append(k_e)
-	if cella_presente(L,k_o):
-		possibili_confinanti.append(k_o)
-	if len(possibili_confinanti)>0:
-		#estratta a caso una Cella adiacente
-		random.shuffle(possibili_confinanti)
-		scelta=possibili_confinanti[0]
-		del possibili_confinanti[0]
-		ic,jc=scelta
-		conf=L[ic][jc]
-		add_collegata(conf,cella)
-		add_collegata(cella,conf)
-		#tolto l'eventuale muro fra la Cella cella e la Cella estratta
+	k_w=(i,j-1)
+	possible_neighbours=[]
+	if check_cell(L,k_n):
+		possible_neighbours.append(k_n)
+	if check_cell(L,k_s):
+		possible_neighbours.append(k_s)
+	if check_cell(L,k_e):
+		possible_neighbours.append(k_e)
+	if check_cell(L,k_w):
+		possible_neighbours.append(k_w)
+	if len(possible_neighbours)>0:
+		random.shuffle(possible_neighbours)
+		choosen = possible_neighbours.pop()
+		ic,jc=choosen
+		neigh=L[ic][jc]
+		add_adj(neigh,cell)
+		add_adj(cell,neigh)
 		if ic<i:
-			cella['n']=False
-			conf['s']=False
+			cell['n']=False
+			neigh['s']=False
 		elif ic>i:
-			cella['s']=False
-			conf['n']=False
+			cell['s']=False
+			neigh['n']=False
 		elif jc<j:
-			cella['o']=False
-			conf['e']=False
+			cell['w']=False
+			neigh['e']=False
 		elif jc>j:
-			cella['e']=False
-			conf['o']=False
+			cell['e']=False
+			neigh['w']=False
 
+def delete_wall(cell,neigh):
+	i,j=cell['r'],cell['c']
+	ic,jc=neigh['r'],neigh['c']
+	add_adj(neigh,cell)
+	add_adj(cell,neigh)
+	if ic<i:
+		cell['n']=False
+		neigh['s']=False
+	elif ic>i:
+		cell['s']=False
+		neigh['n']=False
+	elif jc<j:
+		cell['w']=False
+		neigh['e']=False
+	elif jc>j:
+		cell['e']=False
+		neigh['w']=False
 
-
-def cella_poco_connessa(L):
+def low_degree_cells(L):
 	m=4
 	for r in L:
 		for c in r:
-			if len(c['collegate'])<m:
-				m=len(c['collegate'])
-	celle=[]
+			if len(c['adj'])<m:
+				m=len(c['adj'])
+			if m==0:
+				break
+	cells=[]
 	for r in L:
 		for c in r:
-			if len(c['collegate'])==m:
-				celle.append(c)
-	return celle
+			if len(c['adj'])==m:
+				cells.append(c)
+	return cells
 
-def metti_muro(c1,c2):
-	c1['collegate'].remove(c2)
-	c2['collegate'].remove(c1)
+
+def put_wall(c1,c2):
+	c1['adj'].remove(c2)
+	c2['adj'].remove(c1)
 	i,j=c1['r'],c1['c']
 	ic,jc=c2['r'],c2['c']
 	if ic<i:
@@ -260,141 +213,16 @@ def metti_muro(c1,c2):
 		c1['s']=True
 		c2['n']=True
 	elif jc<j:
-		c1['o']=True
+		c1['w']=True
 		c2['e']=True
 	elif jc>j:
 		c1['e']=True
-		c2['o']=True
+		c2['w']=True
 
 
-def importa(file):
-	contenuto = []
-	#viene letto il contenuto del file in una lista di string
-	f = open(file)
-	if f==None:
-		#print "Errore nella lettura del file"
-		return None
-	for r in f.readlines():
-		t=r.strip("\n")
-		if t!=None and len(t)>0:
-			contenuto.append(t)
-	f.close()
-	text_r = len(contenuto)
-	if text_r == 0:
-		#print "File vuoto"
-		return None
-	text_c = 0
-	for r in contenuto:
-		if len(r)>text_c:
-			text_c=len(r)
-	#verifica della conformita' del contenuto del file
-	indice_riga=0
-	for r_i in contenuto:
-		if len(r_i) != text_c or contiene_caratteri_non_conformi(r_i,indice_riga):
-			#print "Errore nel formato del file"
-			return None
-		indice_riga+=1
-	r=(text_r-1)/2
-	c=(text_c-1)/2
-	#inizializzazione della matrice che rappresenta il maze
-	maze = []
-	for i in range(r):
-		maze.append([])
-		for j in range(c):
-			maze[i].append(None)
-	#costruzione della matrice inserendo le Celle in base ai dati del file
-	for i in range(r):
-		for j in range(c):
-			#coordinate della cella nel testo
-			t_i=1+2*i
-			t_j=1+2*j
-			#costruzione della cella
-			maze[i][j]=crea_cella(
-				r = i,
-				c = j,
-				n = contenuto[t_i-1][t_j]=='*',
- 				s = contenuto[t_i+1][t_j]=='*',
- 				o = contenuto[t_i][t_j-1]=='*',
- 				e = contenuto[t_i][t_j+1]=='*',
-	 			stato = ""
-			)
-			#aggiornamento delle celle collegate (adiacenti e non separate da muro)
-			possibili_collegate=[(i-1,j),(i,j-1)]
-			for p_col in possibili_collegate:
-				if(cella_presente(maze,p_col) and
-					collegate(maze,(i,j),p_col)):
-					cella_col=maze[p_col[0]][p_col[1]]
-					add_collegata(maze[i][j],cella_col)
-					add_collegata(cella_col,maze[i][j])
-	return maze
-
-
-
-def ben_formato(L):
-	#verifica che L rispetti la struttura dati maze
-	if L == None:
-		return False
-	if len(L)<=0:
-		#print "L'oggetto non e' un maze"
-		return False
-	num_c=0
-	for r in L:
-		if len(r)>num_c:
-			num_c=len(r)
-	for r in L:
-		for elem in r:
-			chiavi=['stato','n','s','o','e','r','c','collegate']
-			for chiave in chiavi:
-				if not chiave in elem:
-					#print "L'oggetto non e' un maze"
-					return False
-		#verifica del numero di Celle
-		if not len(r) == num_c:
-			#print "Il numero di celle non e' coerente"
-			return False
-	#verifica dei campi dato delle Celle
-	for i in range(len(L)):
-		for j in range(num_c):
-			if L[i][j] == None:
-				#print "manca la cella",(i,j)
-				return False
-	#verifica corrispondenze fra i muri
-	for i in range(len(L)):
-		for j in range(num_c):
-			c=(i-1,j)
-			if(cella_presente(L,c) and
-				L[i][j]['n'] != L[c[0]][c[1]]['s']):
-				#print "Non corrisponde il muro tra",(i,j),"e",c
-				return False
-			c=(i+1,j)
-			if(cella_presente(L,c) and
-				L[i][j]['s'] != L[c[0]][c[1]]['n']):
-				#print "Non corrisponde il muro tra",(i,j),"e",c
-				return False
-			c=(i,j-1)
-			if(cella_presente(L,c) and
-				L[i][j]['o'] != L[c[0]][c[1]]['e']):
-				#print "Non corrisponde il muro tra",(i,j),"e",c
-				return False
-			c=(i,j+1)
-			if(cella_presente(L,c) and
-				L[i][j]['e'] != L[c[0]][c[1]]['o']):
-				#print "Non corrisponde il muro tra",(i,j),"e",c
-				return False
-	return True
-
-
-
-def righe_colonne(L):
-	if len(L) == 0:
-		return (0,0)
-	return (len(L),len(L[0]))
-
-
-
-def uscite(L):
+def exits(L):
 	u = []
-	r,c=righe_colonne(L)
+	r,c= get_shape(L)
 	for j in range(c):
 		if L[0][j]['n'] == False:
 			if not (0,j) in u:
@@ -403,7 +231,7 @@ def uscite(L):
 			if not (r-1,j) in u:
 				u.append((r-1,j))
 	for i in range(r):
-		if L[i][0]['o'] == False:
+		if L[i][0]['w'] == False:
 			if not (i,0) in u:
 				u.append((i,0))
 		if L[i][c-1]['e'] == False:
@@ -412,24 +240,20 @@ def uscite(L):
 	return u
 
 
-
-def aggiungi_uscita(L):
-	r,c=righe_colonne(L)
-	possibili_uscite=[]
-	#creazione lista possibili uscite
+def add_exit(L):
+	r,c= get_shape(L)
+	possible_exits=[]
 	for j in range(c):
-		possibili_uscite.append((0,j))
-		possibili_uscite.append((r-1,j))
+		possible_exits.append((0,j))
+		possible_exits.append((r-1,j))
 	for i in range(r):
-		possibili_uscite.append((i,0))
-		possibili_uscite.append((i,c-1))
-	#estrazione casuale
-	random.shuffle(possibili_uscite)
+		possible_exits.append((i,0))
+		possible_exits.append((i,c-1))
+	random.shuffle(possible_exits)
 	u=None
-	while len(possibili_uscite)>0 and u==None:
-		u1=possibili_uscite[0]
-		del possibili_uscite[0]
-		if not u1 in uscite(L):
+	while len(possible_exits)>0 and u==None:
+		u1=possible_exits.pop()
+		if not u1 in exits(L):
 			u=u1
 	if u != None:
 		ui,uj=u
@@ -438,65 +262,13 @@ def aggiungi_uscita(L):
 		elif ui==r-1:
 			L[ui][uj]['s']=False
 		elif uj==0:
-			L[ui][uj]['o']=False
+			L[ui][uj]['w']=False
 		elif uj==c-1:
 			L[ui][uj]['e']=False
 
 
-
-def muri(L,c):
-	if not cella_presente(L,c):
-		#print "Cella non presente nel labirinto"
-		return {}
-	i,j=c
-	m=dict()
-	m['N']=L[i][j]['n']
-	m['S']=L[i][j]['s']
-	m['E']=L[i][j]['e']
-	m['O']=L[i][j]['o']
-	return m
-
-
-
-def collegate(L,c1,c2):
-	if not cella_presente(L,c1) or not cella_presente(L,c2):
-		#print "c1 o c2 non presenti"
-		return False
-	if not adiacenti(c1,c2):
-		#print "celle non adiacenti"
-		return False
-	if c1[0] > c2[0]: # c1[1]==c2[1] perche' adiacenti
-		return not L[c1[0]][c1[1]]['n']
-	elif c1[0] < c2[0]: # c1[1]==c2[1] perche' adiacenti
-		return not L[c1[0]][c1[1]]['s']
-	elif c1[1] > c2[1]: # c1[0]==c2[0]
-		return not L[c1[0]][c1[1]]['o']
-	elif c1[1] < c2[1]: # c1[0]==c2[0]
-		return not L[c1[0]][c1[1]]['e']
-	return False
-
-
-
-def get_stato(L,c):
-	if not cella_presente(L,c):
-		#print "Cella non presente"
-		return None
-	i,j=c
-	return L[i][j]['stato']
-
-
-
-def set_stato(L,c,s):
-	if cella_presente(L,c):
-		i,j=c
-		L[i][j]['stato'] = s
-	else:
-		print("Cella non presente")
-
-
-
-def stampa(L):
-	r,c = righe_colonne(L)
+def show(L):
+	r,c = get_shape(L)
 	line=""
 	for i in range(r):
 		for j in range(c):
@@ -508,14 +280,14 @@ def stampa(L):
 		print(line)
 		line = ""
 		for j in range(c):
-			if L[i][j]['o']:
-				if L[i][j]['stato'] == 'Percorso':
-					line+="| P "
+			if L[i][j]['w']:
+				if L[i][j]['state'] == 'Path':
+					line+="| X "
 				else:
 					line+="|   "
 			else:
-				if L[i][j]['stato'] == 'Percorso':
-					line+="  P "
+				if L[i][j]['state'] == 'Path':
+					line+="  X "
 				else:
 					line+="    "
 		if L[i][c-1]['e']:
@@ -532,92 +304,128 @@ def stampa(L):
 
 
 
-def perfetto(L):
-	if L == None:
-		#print "Labirinto non ben definito"
+def perfect(L):
+	if L is None:
 		return False
-	#se sono presenti cicli il labirinto non e' perfetto
-	if contiene_ciclo(L):
+	if has_cycle(L,[None]):
 		return False
-	#Non ci sono cicli ed e' possibile invocare la funzione connesso() per
-	#verificare che il labirinto sia connesso
-	return connesso(L)
+	return connected(L)
 
 
+def DFS_visited(u,visited):
+	u['color'] = 'G'
+	visited.append(u)
+	for cell in u['adj']:
+		if cell['color'] == 'W':
+			visited = DFS_visited(cell,visited)
+	u['color'] = 'B'
+	return visited
 
-def risolvi_alla_cieca(L,partenza):
-	r,c=righe_colonne(L)
-	#azzera lo stato delle Celle del labirinto
-	for h in range(r):
-		for k in range(c):
-			coord=(h,k)
-			set_stato(L,coord,"")
-	i,j=partenza
-	cella=L[i][j]
-	percorso=[]
-	uscita_pesente(L,cella,percorso)
-	#dato che il labirinto e' ben formato e perfetto per ipotesi il cammino
-	#dalla cella ad una uscita del labirinto
-	#esiste sempre e viene salvato dalla funzione uscita_presente nella lista
-	#percorso, che viene quindi restituita
-	return percorso
-
-
-
-def trova_percorso(L,c1,c2):
-	i,j=c1
-	h,k=c2
-	inizio=L[i][j]
-	fine=L[h][k]
-	percorso=[]
-	#dato che il labirinto e' ben formato e perfetto per ipotesi, esiste
-	#sempre un cammino da c1 a c2, che viene trovato dalla funzione esiste_cammino
-	esiste_cammino(inizio,fine,percorso)
-	p=[]
-	for c in percorso:
-		p.append((c['r'],c['c']))
-	return p
-
-
-def genera_labirinto(r,c):
-	#viene istanziato un maze iniziale dove ogni Cella ha tutti i muri su ogni lato
-	L=[]
+def connected_components(L):
+	r,c = get_shape(L)
 	for i in range(r):
-		L.append([])
 		for j in range(c):
-			L[i].append(crea_cella(i,j))
-	#per ogni Cella viene abbattuto un muro scelto in modo random
+			L[i][j]['color'] = 'W'
+	CC = []
+	for i in range(r):
+		for j in range(c):
+			if L[i][j]['color'] == 'W':
+				comp = DFS_visited(L[i][j],[])
+				CC.append(comp)
+	return CC
+
+def join_components(CC):
+	c1 = 0
+	c2 = 1
+	joined = False
+	while len(CC) > 1:
+		while not joined and c2<len(CC):
+			cx1,cx2 = 0,0
+			while not joined and cx1<len(CC[c1]):
+				while not joined and cx2<len(CC[c2]):
+					cell1 = CC[c1][cx1]
+					cell2 = CC[c2][cx2]
+					if adjacent((cell1['r'],cell1['c']),(cell2['r'],cell2['c'])):
+						delete_wall(cell1,cell2)
+						for x in CC[c2]:
+							CC[c1].append(x)
+						del CC[c2]
+						joined = True
+					else:
+						cx2 += 1
+				cx1 += 1
+				cx2 = 0
+			c2 += 1
+			cx1,cx2 = 0,0
+		joined = False
+		c2 = 1
+
+
+def make_maze(r,c,make_exits=True,verbose=False):
+	L = [[make_cell(i,j) for j in range(c)] for i in range(r)]
 	for l in L:
-		for cella in l:
-			abbatti_muro_random(L,cella)
-	#la funzione cicla fino a che non si ottiene un maze perfetto
-	while not ben_formato(L) or not perfetto(L):
-		ciclo=[]
-		#si tolgono eventuali cicli presenti nel maze cercandoli e mettendo
-		#un muro fra le ultime due Celle dell'eventuale ciclo trovato
-		while contiene_ciclo(L):
-			trova_ciclo(L,ciclo)
-			c1=ciclo[len(ciclo)-1]
-			del ciclo[len(ciclo)-1]
-			c2=ciclo[len(ciclo)-1]
-			del ciclo[len(ciclo)-1]
-			ciclo=[]
-			metti_muro(c1,c2)
-		#ciclo che continua fino a che il grafo del labirinto non risulta
-		#essere connesso (non vi sono cicli a questo punto, quindi
-		#puo' essere usata la funzione connesso)
-		while not connesso(L):
-			#viene abbattuto un muro a caso nelle Celle che presentano un
-			#maggior numero di muri
-			for k in cella_poco_connessa(L):
-				abbatti_muro_random(L,k)
-			#vengono tolti eventuali cicli introdotti
-			while contiene_ciclo(L):
-				trova_ciclo(L,ciclo)
-				c1=ciclo[len(ciclo)-1]
-				del ciclo[len(ciclo)-1]
-				c2=ciclo[len(ciclo)-1]
-				del ciclo[len(ciclo)-1]
-				ciclo=[]
-				metti_muro(c1,c2)
+		for cell in l:
+			delete_random_wall(L,cell)
+	while not perfect(L):
+		cycle=[]
+		end = [None]
+		i = 0
+		while has_cycle(L,end):
+			if verbose:
+				print("1.cycle: ",i)
+			cycle = find_cycle(end[0],L)
+			c1=cycle.pop()
+			c2=cycle.pop()
+			put_wall(c1,c2)
+			end = [None]
+			i += 1
+		i = 0
+		while not connected(L):
+			if verbose:
+				print("2.connected: ",i)
+			join_components(connected_components(L))
+			# for k in low_degree_cells(L):
+			# 	delete_random_wall(L,k)
+			y = 0
+			while has_cycle(L,end):
+				if verbose:
+					print("2.1.cycle: ",y)
+				cycle = find_cycle(end[0],L)
+				c1=cycle.pop()
+				c2=cycle.pop()
+				put_wall(c1,c2)
+				end = [None]
+				y += 1
+			i += 1
+	if make_exits:
+		add_exit(L)
+		add_exit(L)
 	return L
+
+def solve(L):
+	exts = exits(L)
+	if len(exts)>=2:
+		e1 = L[exts[0][0]][exts[0][1]]
+		e2 = L[exts[1][0]][exts[1][1]]
+		path = find_path(e1,e2)
+		return [(x['r'],x['c']) for x in path]
+
+if __name__ == '__main__':
+	L = make_maze(1005,40,False,True)
+	r,c = 105,40
+	for u in [(0,0),(104,39)]:
+		ui,uj=u
+		if ui==0:
+			L[ui][uj]['n']=False
+		elif ui==r-1:
+			L[ui][uj]['s']=False
+		elif uj==0:
+			L[ui][uj]['w']=False
+		elif uj==c-1:
+			L[ui][uj]['e']=False
+	show(L)
+	path = solve(L)
+	print('path:',path)
+	for x in path:
+		L[x[0]][x[1]]['state'] = 'Path'
+	show(L)
