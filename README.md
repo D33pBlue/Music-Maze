@@ -1,12 +1,9 @@
 # Music-Maze
 Music generator through implicit cooperative agents
 
-## TODO
-- remove recursion from functions in maze.py
-
 ## The project
 Music can be considered (in according to [1]) nothing more than "organized sounds", where repetition has an important role in order to create a structure or a recognizable pattern.
-...
+In this script I tried to replicate the results shown in paper [1]. Furthermore I added an automatism for generating the music without the direct cooperation of a human. The human is replaced by an automatic agent that choose notes solving maze. In this way, for the way the maze is built, the properties presented in the paper should be respected
 
 ## References
 - [1] Emerging sounds through implicit cooperation: a novel model for dynamic music generation (http://eprints.lancs.ac.uk/87245/1/aiide17.pdf)
